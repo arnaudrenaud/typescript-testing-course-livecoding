@@ -91,4 +91,8 @@ export class Order extends BaseEntity {
   async deleteOrder() {
     await Order.delete({ id: this.id });
   }
+
+  async newMethod() {
+    console.log("newMethod");
+  }
 }
