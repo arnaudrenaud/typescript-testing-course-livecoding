@@ -1,7 +1,7 @@
 import {
   BaseEntity,
   Column,
-  Entity,
+  Entity, FindOneOptions, getConnection,
   OneToMany,
   PrimaryGeneratedColumn,
 } from "typeorm";
@@ -15,6 +15,9 @@ export class Order extends BaseEntity {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
+  @Column({ type: "timestamp", default: () => "CURRENT_TIMESTAMP" })
+  createdAt!: Date;
+
   @OneToMany(() => ArticleInOrder, (articleInOrder) => articleInOrder.order, {
     eager: true,
   })
@@ -22,6 +25,18 @@ export class Order extends BaseEntity {
 
   @Column({ default: false })
   submitted!: boolean;
+
+  @Column({ type: "real", nullable: true })
+  totalWithoutShipping?: number;
+
+  @Column({ type: "real", nullable: true })
+  shipping?: number;
+
+  @Column({ type: "real", nullable: true })
+  totalWithShipping?: number;
+
+  @Column({ default: "Not Submitted" })
+  status!: string;
 
   static async createOrder(
     articlesInOrder: { articleId: string; quantity: number }[]
@@ -86,6 +101,67 @@ export class Order extends BaseEntity {
       shipping,
       totalWithShipping: totalWithoutShipping + shipping,
     };
+  }
+
+  static async getOrderDetails(id: string): Promise<any> {
+    try {
+      const options: FindOneOptions<Order> = {
+        where: { id },
+        relations: ["articlesInOrder"]
+      };
+
+      const order = await Order.findOneOrFail(options);
+
+      await order.reload();
+
+      const totalWithoutShipping = order.getTotalPrice();
+      const shipping = order.getShippingCost();
+      const totalWithShipping = totalWithoutShipping + shipping;
+
+      return {
+        articles: order.articlesInOrder.map((item) => ({
+          name: item.article.name,
+          unitPrice: item.article.priceEur,
+          quantity: item.quantity,
+        })),
+        totalWithoutShipping,
+        shipping,
+        totalWithShipping,
+        status: order.submitted ? "Submitted" : "Not Submitted",
+      };
+    } catch (error) {
+      throw new Error(`Error fetching order details: ${error}`);
+    }
+  }
+
+  static async getOrderStats(): Promise<{ month: string; totalPrice: number }[]> {
+    const currentDate = new Date();
+    const currentMonth = currentDate.getMonth() + 1;
+    const currentYear = currentDate.getFullYear();
+
+    const monthlyStats: { month: string; totalPrice: number }[] = [];
+
+    for (let i = 0; i < 6; i++) {
+      const month = currentMonth - i;
+      const year = currentYear - Math.floor((currentMonth - month - 1) / 12);
+      const firstDayOfMonth = new Date(year, month - 1, 1);
+      const lastDayOfMonth = new Date(year, month, 0, 23, 59, 59, 999);
+
+      const result = await this.createQueryBuilder("order")
+          .select("SUM(order.totalWithShipping)", "totalPrice")
+          .where("order.createdAt BETWEEN :firstDayOfMonth AND :lastDayOfMonth", {
+            firstDayOfMonth: firstDayOfMonth.toISOString(),
+            lastDayOfMonth: lastDayOfMonth.toISOString(),
+          })
+          .getRawOne();
+
+      monthlyStats.push({
+        month: `${year}-${month < 10 ? '0' + month : month}`,
+        totalPrice: result.totalPrice || 0,
+      });
+    }
+
+    return monthlyStats;
   }
 
   async deleteOrder() {

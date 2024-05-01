@@ -1,15 +1,25 @@
-import { Article } from "./Article";
+import express from "express";
 import { getNewDataSource } from "./config/database";
+import {Article} from "./Article";
+import orderRoute from "./routes/OrderRoute";
 
 async function main() {
+  const app = express();
+
+  // Connexion à la base de données
   const dataSource = await getNewDataSource("./sqlite.db");
   console.log("💾 Successfully connected to database.");
+
+  // Ajoute des routes
+  app.use("/orders", orderRoute);
 
   await Article.createBaseArticles();
   console.log("Successfully created articles.");
 
-  // start HTTP server…
-  console.log("🚀 Server listening on port xxxx.");
+  const port = process.env.PORT || 3000;
+  app.listen(port, () => {
+    console.log(`🚀 Server listening on port ${port}.`);
+  });
 }
 
 main();
