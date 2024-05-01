@@ -36,5 +36,19 @@ router.delete("/:id", async (req: Request, res: Response) => {
     }
 });
 
+router.put("/orders/:id", async (req: Request, res: Response) => {
+    try {
+        const orderId = req.params.id;
+        const updates = req.body;
+
+        const updatedOrder = await Order.updateOrder(orderId, updates);
+        res.status(200).json(updatedOrder);
+    } catch (error) {
+        console.error("Error updating order:", error);
+        res.status(500).json({ message: "Failed to update order" });
+    }
+});
+
+
 
 export default router;

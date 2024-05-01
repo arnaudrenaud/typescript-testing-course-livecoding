@@ -164,6 +164,17 @@ export class Order extends BaseEntity {
     return monthlyStats;
   }
 
+  static async updateOrder(orderId: string, updates: Partial<Order>): Promise<Order> {
+    try {
+      const order = await Order.findOneOrFail({ where: { id: orderId }, relations: ["articlesInOrder"] });
+      Object.assign(order, updates);
+      await order.save();
+      return order;
+    } catch (error) {
+      throw new Error(`Error updating order: ${error}`);
+    }
+  }
+
   async deleteOrder() {
     await Order.delete({ id: this.id });
   }
