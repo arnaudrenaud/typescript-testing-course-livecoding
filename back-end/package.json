@@ -21,8 +21,8 @@
     "typescript": "^5.4.5"
   },
   "dependencies": {
+    "express": "^4.19.2",
     "sqlite3": "^5.1.7",
-    "tsc": "^2.0.4",
     "typeorm": "^0.3.20"
   }
 }
